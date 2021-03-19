@@ -28,13 +28,13 @@
 
 .EXAMPLE
     
-    Run the script with full list of parameters, Prism Central passed as IP Address
+    Run the script with full list of parameters, Era server passed as IP Address
 
     Get-EraDBListRestAPI.ps1 -EraServer 10.11.12.13 -UserName admin -PassWord nutanix/4u
     
 .EXAMPLE
 
-    Run the script with Prism Central parameter only (as FQDN), script will interacively ask for credentials.
+    Run the script with Era server parameter only (as FQDN), script will interacively ask for credentials.
 
     Get-EraDBListRestAPI.ps1 -EraServer pc.nutanix.demo
 
