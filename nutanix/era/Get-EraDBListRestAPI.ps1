@@ -12,7 +12,7 @@
 
 .PARAMETER EraServer
 
-    PC instance IP or FQDN, mandatory
+    Era instance IP or FQDN, mandatory
 
 .PARAMETER UserName
 
