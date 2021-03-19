@@ -170,10 +170,6 @@ $timeMachines = @{}
 $customProperties = ("os_type", "os_version", "os_info", "application_type", "application_version", "SIZE", "SIZE_UNIT")
 $restReportArray = @()
 
-$ClusterBaseURLv1 = "https://" + $EraServer + ":9440/PrismGateway/services/rest/v1/"
-$ClusterBaseURLv2 = "https://" + $EraServer + ":9440/PrismGateway/services/rest/v2.0/"
-$ClusterBaseURLv3 = "https://" + $EraServer + ":9440/api/nutanix/v3/"
-
 $EraBaseURLv09 = "https://" + $EraServer + "/era/v0.9/"
 
 
