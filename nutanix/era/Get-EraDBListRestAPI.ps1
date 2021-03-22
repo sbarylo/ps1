@@ -439,7 +439,7 @@ if($DebugModeOn) { #always stop transcript before exiting, otherwise it will kee
 	Stop-Transcript
 }
 
-#return $total_errors #if no errors occured, this should be 0 (ZERO)
+return $total_errors #if no errors occured, this should be 0 (ZERO)
 
 }
 
