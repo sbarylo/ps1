@@ -8,7 +8,7 @@
     Scirpt will run against Era instance and execute a few queries against different endpoints to gather the report.
     At least read-only access to Era is required. If UserName and PassWord are not provided as parameters, 
     the script will pop-up interactive "Get-Credentials" window to gather them.
-    Script will create "db_report.csv" file in the location it was called from.
+    Script will create "<EraServer>-db_report.csv" file in the location it was called from.
 
 .PARAMETER EraServer
 
@@ -34,7 +34,7 @@
     
 .EXAMPLE
 
-    Run the script with Era server parameter only (as FQDN), script will interacively ask for credentials.
+    Run the script with EraServer parameter only (as FQDN), script will interacively ask for credentials.
 
     Get-EraDBListRestAPI.ps1 -EraServer pc.nutanix.demo
 
@@ -279,7 +279,8 @@ if (Test-NetConnection -ComputerName $EraServer -Port 443 -InformationLevel Quie
 		#build dictionary of Time Machines (tm)
 		try {
 			$stage = "Time Machines"
-			$restResponse = Invoke-RestMethod -Method GET -Uri $($EraBaseURLv09 + "tms?detailed=true&load-database=true&load-clones=true&load-metrics=true&load-associated-clusters=true") -TimeoutSec 60 -Headers $restHeader -ContentType $ContentType
+			#$restResponse = Invoke-RestMethod -Method GET -Uri $($EraBaseURLv09 + "tms?detailed=true&load-database=true&load-clones=true&load-metrics=true&load-associated-clusters=true") -TimeoutSec 60 -Headers $restHeader -ContentType $ContentType
+			$restResponse = Invoke-RestMethod -Method GET -Uri $($EraBaseURLv09 + "tms?load-database=true&load-clones=true&clone-tms=true&database-tms=true&detailed=true&load-metrics=true&load-associated-clusters=true") -TimeoutSec 60 -Headers $restHeader -ContentType $ContentType
 		} catch {
 			$stage
 			$_.Exception.Message
@@ -322,7 +323,7 @@ if (Test-NetConnection -ComputerName $EraServer -Port 443 -InformationLevel Quie
 							"storage_usedGiB" = NormalizeInGiB $_.metric.storage.usedSize $_.metric.storage.unit
 							"os_type" = ($ephemProperties | ?{$_.name -eq $customProperties[0]}).value
 							
-							#below is rather ugly, because Era APIv0.9 has separate property (os_version) to idendify version of Windows Server and uses os_info property to display uname output for Linux (while "os_version" doesn't exist for Windows:/
+							#below is rather ugly, because Era APIv0.9 has separate property (os_version) to identify version of Windows Server and uses os_info property to display uname output for Linux (while "os_version" doesn't exist for Windows:/
 							"os_ver" = if ([string](($ephemProperties | ?{$_.name -eq $customProperties[1]}).value) -ne "") {[string](($ephemProperties | ?{$_.name -eq $customProperties[1]}).value)} else {[string](($ephemProperties | ?{$_.name -eq $customProperties[2]}).value.split(' ')[0..2])}
 							
 							"app_ver" = ($ephemProperties | ?{$_.name -eq $customProperties[4]}).value
@@ -348,10 +349,11 @@ if (Test-NetConnection -ComputerName $EraServer -Port 443 -InformationLevel Quie
 
         foreach ($restDB in $restResponse) {
 			$ephemProperties = $restDB.properties | ?{$_.name -in $customProperties}
-			#$restDB.name
             $restReportItem = [PSCustomObject]@{
                 "db_name" = $($restDB.name)
                 "db_type" = $($restDB.type)
+				"db_isClustered" = $($restDB.clustered)
+				"db_isClone" = $($restDB.clone)
 				"db_version" = $dbServers[$($restDB.databaseNodes[0].dbserverId)].app_ver
 				"db_sizeGiB" = NormalizeInGiB ($ephemProperties | ?{$_.name -eq $customProperties[5]}).value ($ephemProperties | ?{$_.name -eq $customProperties[6]}).value
 				"tms_name" = $timeMachines[$($restDB.id)].name
@@ -376,8 +378,52 @@ if (Test-NetConnection -ComputerName $EraServer -Port 443 -InformationLevel Quie
             $restReportArray += $restReportItem
             
         }
+		
+		#we need to do same as above for Clones, as class is slightly different and no all properties are present
+		try {
+			$stage = "Databases"
+			$restResponse = Invoke-RestMethod -Method GET -Uri $($EraBaseURLv09 + "clones?detailed=true&any-status=true") -TimeoutSec 60 -Headers $restHeader -ContentType $ContentType
+		} catch {
+			$stage 
+			$_.Exception.Message
+			$respStream = $_.Exception.Response.GetResponseStream()
+			$reader = New-Object System.IO.StreamReader($respStream)
+			$respBody = $reader.ReadToEnd() | ConvertFrom-Json
+		}
+
+        foreach ($restClone in $restResponse) {
+			$ephemProperties = $restClone.properties | ?{$_.name -in $customProperties}
+            $restReportItem = [PSCustomObject]@{
+                "db_name" = $($restClone.name)
+                "db_type" = $($restClone.type)
+				"db_isClustered" = $($restClone.clustered)
+				"db_isClone" = $($restClone.clone)
+				"db_version" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].app_ver
+				"db_sizeGiB" = "n/a"
+				"tms_name" = $($restClone.parentTimeMachine.name)
+				"tms_sizeGiB" = "n/a"
+				"sla_name" = $($restClone.parentTimeMachine.sla.name)
+				"schedule_name" = $($restClone.parentTimeMachine.schedule.name)
+				"nx_cluster" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].nx_cluster
+				"hypervisor" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].hypervisor
+				"cloud_type" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].cloud
+				"aos_version" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].aos
+				"srv_name" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].name
+				"srv_OS" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].os_type
+				"srv_OSver" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].os_ver
+				"srv_sockets" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].socket_count
+				"srv_corespersocket" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].corepersocket_count
+				"srv_memGiB" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].memory_sizeGiB
+				"srv_allocatedGiB" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].storage_allotGiB
+				"srv_usedGiB" = $dbServers[$($restClone.databaseNodes[0].dbserverId)].storage_usedGiB
+				
+            } 
+
+            $restReportArray += $restReportItem
+            
+        } #>
         
-		$restReportArray | Sort-Object -Property vm_name | Export-Csv -path ((Get-Location).Path + "\db_report.csv") -NoTypeInformation -Encoding UTF8
+		$restReportArray | Sort-Object -Property vm_name | Export-Csv -path ((Get-Location).Path + "\" + $EraServer + "-db_report.csv") -NoTypeInformation -Encoding UTF8
 		 
 	}
 	else {
@@ -398,6 +444,6 @@ if($DebugModeOn) { #always stop transcript before exiting, otherwise it will kee
 }
 
 
-End { #is intentionally empty right now, but might be useful for some clean-up and stuff
+End { #is intentionally left empty right now, but might be useful for some clean-up and stuff
 
 }
