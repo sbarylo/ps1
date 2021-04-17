@@ -571,12 +571,12 @@ if (Test-NetConnection -ComputerName $EraServer -Port 443 -InformationLevel Quie
 				}
 				$maxEravRAM = ($eraRegisteredVMs | %{$_.value.memory_sizeGiB} | measure-object -Maximum).Maximum
 				if ($maxEravRAM -gt $minNUMApRAM) {
-					Write-Host ("{0,-52}  :  {1,14}" -f "Largest configured vRAM (GiB)", $maxEravRAM) -ForegroundColor Red
+					Write-Host ("{0,-52}  :  {1,14}" -f "Era largest configured vRAM (GiB)", $maxEravRAM) -ForegroundColor Red
 				}				
 				Write-Host ("{0,-52}  :  {1,14}" -f "Era UVMs vCPU footprint (cores)",($eraRegisteredVMs | %{$_.value.vm_cores}| measure-object -Sum).Sum) -ForegroundColor Green
 				$maxEravCPU = ($eraRegisteredVMs | %{$_.value.vm_cores} | measure-object -Maximum).Maximum
 				if ($maxEravCPU -gt $minNUMApCPU) {
-					Write-Host ("{0,-52}  :  {1,14}" -f "Largest configured vCPU core count", $maxEravCPU) -ForegroundColor Red
+					Write-Host ("{0,-52}  :  {1,14}" -f "Era largest configured vCPU core count", $maxEravCPU) -ForegroundColor Red
 				}
 				
 				Write-Host (">>>>>>>>>>>>>> Nutanix Cluster STORAGE capacity usage: <<<<<<<<<<<<<<<<")
